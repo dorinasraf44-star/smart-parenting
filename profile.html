@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>פרופיל | Smart Parenting</title>
+  <link rel="stylesheet" href="style.css" />
+  <meta name="description" content="פרופיל אישי - מידע על ההורה/הריון/ילדים והיסטוריית שימוש.">
+</head>
+<body>
+  <header>
+    <div class="container nav">
+      <div class="brand">הורות חכמה <small>| Smart Parenting</small></div>
+      <nav class="menu">
+        <a href="index.html">דף הבית</a>
+        <a href="about.html">אודות</a>
+        <a href="profile.html" aria-current="page">פרופיל</a>
+        <a href="ai.html">יועץ AI</a>
+        <a href="community.html">הקהילה</a>
+        <a href="surveys.html">שאלונים</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <span class="eyebrow">האזור האישי</span>
+        <h1 id="hello">היי, משתמש</h1>
+        <p class="lead">כאן תראי מידע מותאם אישית על ההריון/הילדים שלך, היסטוריית שאלות וסטטוס מטבעות (דמו).</p>
+
+        <div class="btn-row">
+          <a class="btn btn-primary" href="ai.html">מעבר ליועץ AI</a>
+          <a class="btn btn-ghost" href="surveys.html">מילוי שאלונים</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <h2>הסטטוס שלי</h2>
+        <div class="rule"></div>
+
+        <div class="features">
+          <article class="card">
+            <h3>סטטוס הריון</h3>
+            <p class="muted" id="pregStatus">שבוע: — | תאריך יעד: —</p>
+          </article>
+          <article class="card">
+            <h3>הילדים שלי</h3>
+            <p class="muted" id="kidsStatus">מספר ילדים: — | גילאים: —</p>
+          </article>
+          <article class="card">
+            <h3>מטבעות</h3>
+            <p class="muted" id="coinsStatus">יתרה: — | פעולות אחרונות: —</p>
+          </article>
+        </div>
+
+        <div class="card" style="margin-top:18px">
+          <h3 style="margin-top:0">היסטוריית שימוש (דמו)</h3>
+          <p class="muted">כאן יוצגו שאלות AI אחרונות, שאלונים שמולאו ופוסטים שפורסמו — לאחר חיבור למסד נתונים.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container foot-grid">
+      <div class="foot">
+        <div class="brand" style="margin-bottom:6px;">Smart Parenting | הורות חכמה</div>
+        <div class="muted">© 2026 — פרויקט גמר.</div>
+      </div>
+      <div class="foot"><h4>אודות</h4><a href="about.html">על הפלטפורמה</a><br/><a href="about.html#team">הצוות</a></div>
+      <div class="foot"><h4>פרטיות</h4><a href="privacy.html">מדיניות פרטיות</a><br/><a href="terms.html">תנאי שימוש</a></div>
+      <div class="foot"><h4>חברתי</h4><a href="#">Facebook</a><br/><a href="#">Instagram</a></div>
+    </div>
+  </footer>
+
+  <script>
+    // דמו: "שם משתמש" מה-URL: profile.html?user=dorin
+    const params = new URLSearchParams(location.search);
+    const user = params.get('user') || 'משתמש';
+    document.getElementById('hello').textContent = `היי, ${user}`;
+
+    // דמו נתונים (בהמשך יגיע מה-SQL דרך API)
+    document.getElementById('pregStatus').textContent = 'שבוע: 22 | תאריך יעד: 15.4.2026';
+    document.getElementById('kidsStatus').textContent = 'מספר ילדים: 0 | גילאים: —';
+    document.getElementById('coinsStatus').textContent = 'יתרה: 120 | פעולות אחרונות: מילוי שאלון שינה';
+  </script>
+</body>
+</html>

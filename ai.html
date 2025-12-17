@@ -1,0 +1,97 @@
+﻿<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>יועץ AI | Smart Parenting</title>
+  <link rel="stylesheet" href="style.css" />
+  <meta name="description" content="יועצי AI לפי תחום: הריון, שינה, תזונה והתפתחות.">
+</head>
+<body>
+  <header>
+    <div class="container nav">
+      <div class="brand">הורות חכמה <small>| Smart Parenting</small></div>
+      <nav class="menu">
+        <a href="index.html">דף הבית</a>
+        <a href="about.html">אודות</a>
+        <a href="profile.html">פרופיל</a>
+        <a href="ai.html" aria-current="page">יועץ AI</a>
+        <a href="community.html">הקהילה</a>
+        <a href="surveys.html">שאלונים</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <span class="eyebrow">יועצי AI חכמים</span>
+        <h1>יועץ AI מותאם להורות שלך</h1>
+        <p class="lead">יועצים לפי תחום, מבוססי סטטיסטיקות ומידע קהילתי – לתמיכה בקבלת החלטות (לא תחליף לייעוץ רפואי).</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <h2>בחרי תחום ייעוץ</h2>
+        <div class="rule"></div>
+
+        <div class="advisor-grid">
+          <button class="advisor-card" onclick="selectAdvisor('הריון')"><h3>🤰 הריון</h3><p class="muted">תסמינים, בדיקות, שלבים.</p></button>
+          <button class="advisor-card" onclick="selectAdvisor('שינה')"><h3>😴 שינה</h3><p class="muted">הרגלי שינה ושגרות.</p></button>
+          <button class="advisor-card" onclick="selectAdvisor('תזונה')"><h3>🥗 תזונה</h3><p class="muted">הנקה, מוצקים, איזון תזונתי.</p></button>
+          <button class="advisor-card" onclick="selectAdvisor('התפתחות')"><h3>🧠 התפתחות</h3><p class="muted">ציוני דרך ותרגילים.</p></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container qa-box">
+        <h2 id="selected-advisor" style="margin:0 0 12px">שאלה ליועץ</h2>
+        <label for="q" class="muted" style="display:block;margin-bottom:6px">כתבי כאן את השאלה שלך</label>
+        <textarea id="q" placeholder="לדוגמה: אני בשבוע 22 עם צרבות. מה עוזר?"></textarea>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="getAnswer()">קבלי תשובה</button>
+          <button class="btn btn-ghost" onclick="clearQA()">ניקוי</button>
+        </div>
+
+        <div class="answer-box" id="answerBox" style="display:none">
+          <strong>תשובת מערכת (דמו):</strong>
+          <p id="answerText" style="margin:8px 0 0">כאן תופיע תשובה מבוססת מודל/מאגר. נחליף בקריאת API בהמשך.</p>
+          <p class="muted" style="margin-top:8px">המידע להכוונה בלבד ואינו מחליף ייעוץ רפואי.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+   <footer>
+    <div class="container foot-grid">
+      <div class="foot">
+        <div class="brand" style="margin-bottom:6px;">Smart Parenting | הורות חכמה</div>
+        <div class="muted">© 2026 — פרויקט גמר.</div>
+      </div>
+      <div class="foot"><h4>אודות</h4><a href="about.html">על הפלטפורמה</a><br/><a href="about.html#team">הצוות</a></div>
+      <div class="foot"><h4>פרטיות</h4><a href="privacy.html">מדיניות פרטיות</a><br/><a href="terms.html">תנאי שימוש</a></div>
+      <div class="foot"><h4>חברתי</h4><a href="#">Facebook</a><br/><a href="#">Instagram</a></div>
+    </div>
+  </footer>
+
+  <script>
+    function selectAdvisor(type){
+      document.getElementById('selected-advisor').textContent = 'שאלה ליועץ AI בתחום: ' + type;
+      document.getElementById('answerBox').style.display = 'none';
+    }
+    function getAnswer(){
+      const q = (document.getElementById('q').value || '').trim();
+      const title = document.getElementById('selected-advisor').textContent.replace('שאלה ליועץ AI בתחום: ','');
+      const base = 'כיווני פעולה נפוצים: 1) בדקי מחמירים/מפחיתים. 2) צעדים התנהגותיים/תזונתיים. 3) התייעצות מקצועית בעת הצורך.';
+      document.getElementById('answerBox').style.display = 'block';
+      document.getElementById('answerText').textContent =
+        q ? `שאלתך${title ? ' ('+title+')' : ''}: “${q}”. ${base}` : base;
+    }
+    function clearQA(){
+      document.getElementById('q').value=''; document.getElementById('answerBox').style.display='none';
+    }
+  </script>
+</body>
+</html>

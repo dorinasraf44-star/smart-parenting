@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>התחברות | Smart Parenting</title>
+  <link rel="stylesheet" href="style.css" />
+  <meta name="description" content="התחברות למערכת Smart Parenting.">
+</head>
+<body>
+  <header>
+    <div class="container nav">
+      <div class="brand">הורות חכמה <small>| Smart Parenting</small></div>
+      <nav class="menu">
+        <a href="index.html">דף הבית</a>
+        <a href="about.html">אודות</a>
+        <a href="profile.html">פרופיל</a>
+        <a href="ai.html">יועץ AI</a>
+        <a href="community.html">הקהילה</a>
+        <a href="surveys.html">שאלונים</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <span class="eyebrow">כניסה לחשבון</span>
+        <h1>התחברות</h1>
+        <p class="lead">התחברי כדי לשמור פרופיל, היסטוריית שאלות וסטטוס מטבעות (דמו).</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="card" style="max-width:520px;margin-inline:auto">
+          <h3 style="margin-top:0">פרטי התחברות</h3>
+
+          <label class="muted" for="username" style="display:block;margin:10px 0 6px">שם משתמש</label>
+          <input id="username" type="text" placeholder="לדוגמה: dorin" autocomplete="username">
+
+          <label class="muted" for="password" style="display:block;margin:10px 0 6px">סיסמה</label>
+          <input id="password" type="password" placeholder="••••••••" autocomplete="current-password">
+
+          <div class="btn-row" style="margin-top:14px">
+            <button class="btn btn-primary" type="button" onclick="login()">התחברי</button>
+            <a class="btn btn-ghost" href="register.html">אין לך חשבון? הרשמה</a>
+          </div>
+
+          <div class="answer-box" id="msg" style="display:none;margin-top:12px"></div>
+
+          <p class="muted" style="margin-top:14px">
+            *כרגע דמו: אנחנו “מדמים” התחברות ע״י מעבר ל־profile.html עם שם המשתמש.
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container foot-grid">
+      <div class="foot">
+        <div class="brand" style="margin-bottom:6px;">Smart Parenting | הורות חכמה</div>
+        <div class="muted">© 2026 — פרויקט גמר.</div>
+      </div>
+      <div class="foot"><h4>אודות</h4><a href="about.html">על הפלטפורמה</a><br/><a href="about.html#team">הצוות</a></div>
+      <div class="foot"><h4>פרטיות</h4><a href="privacy.html">מדיניות פרטיות</a><br/><a href="terms.html">תנאי שימוש</a></div>
+      <div class="foot"><h4>חברתי</h4><a href="#">Facebook</a><br/><a href="#">Instagram</a></div>
+    </div>
+  </footer>
+
+  <script>
+    function login(){
+      const u = document.getElementById('username').value.trim();
+      const p = document.getElementById('password').value.trim();
+      const msg = document.getElementById('msg');
+
+      if(!u || !p){
+        msg.style.display = 'block';
+        msg.textContent = 'נא למלא שם משתמש וסיסמה.';
+        return;
+      }
+
+      // דמו: מעבר לפרופיל עם שם משתמש
+      window.location.href = `profile.html?user=${encodeURIComponent(u)}`;
+    }
+  </script>
+</body>
+</html>
