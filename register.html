@@ -4,12 +4,45 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>הרשמה | Smart Parenting</title>
+  <meta name="description" content="הרשמה ל-Smart Parenting | הורות חכמה" />
   <link rel="stylesheet" href="style.css" />
-  <meta name="description" content="הרשמה למערכת Smart Parenting.">
+
+  <style>
+    /* תוספת קטנה רק לעמודי auth (עדין באותו קו עיצובי) */
+    .auth-wrap { padding: 48px 0 70px; }
+    .auth-card { max-width: 520px; margin-inline: auto; }
+    .field { margin-top: 12px; }
+    .field label { display:block; margin: 0 0 6px; }
+    .input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid rgba(0,0,0,.12);
+      border-radius: 12px;
+      outline: none;
+      background: #fff;
+      font-size: 1rem;
+    }
+    .input:focus { box-shadow: 0 0 0 4px rgba(0,0,0,.06); }
+    .note { margin-top: 10px; }
+    .msg {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      display: none;
+      border: 1px solid rgba(0,0,0,.08);
+      background: rgba(255,255,255,.75);
+    }
+    .msg.error { display:block; border-color: rgba(200,0,0,.25); }
+    .msg.ok { display:block; border-color: rgba(0,140,60,.25); }
+    .tiny-links { margin-top: 12px; display:flex; gap:10px; flex-wrap: wrap; }
+    .tiny-links a { text-decoration: underline; }
+  </style>
 </head>
+
 <body>
-  <header>
-    <div class="container nav">
+  <!-- Header -->
+  <header aria-label="סרגל עליון">
+    <div class="container nav" role="navigation" aria-label="ניווט ראשי">
       <div class="brand">הורות חכמה <small>| Smart Parenting</small></div>
       <nav class="menu">
         <a href="index.html">דף הבית</a>
@@ -25,54 +58,55 @@
   <main>
     <section class="hero">
       <div class="container">
-        <span class="eyebrow">יצירת חשבון</span>
+        <span class="eyebrow">ברוכה הבאה</span>
         <h1>הרשמה</h1>
-        <p class="lead">פתיחת חשבון מאפשרת התאמה אישית ושמירת סטטוסים (דמו).</p>
+        <p class="lead">יוצרות משתמש כדי לשמור פרופיל, שאלונים ושימושים עתידיים בקהילה וב־AI.</p>
       </div>
     </section>
 
-    <section class="section">
+    <section class="auth-wrap">
       <div class="container">
-        <div class="card" style="max-width:620px;margin-inline:auto">
-          <h3 style="margin-top:0">פרטי הרשמה</h3>
+        <div class="card auth-card">
+          <h3 style="margin-top:0">יצירת חשבון</h3>
 
-          <div class="features" style="grid-template-columns:1fr 1fr;gap:12px">
-            <div>
-              <label class="muted" for="username" style="display:block;margin:10px 0 6px">שם משתמש</label>
-              <input id="username" type="text" placeholder="dorin" autocomplete="username">
+          <form id="registerForm" autocomplete="on">
+            <div class="field">
+              <label for="email" class="muted">אימייל</label>
+              <input class="input" id="email" name="email" type="email" required placeholder="name@example.com" />
             </div>
 
-            <div>
-              <label class="muted" for="email" style="display:block;margin:10px 0 6px">אימייל</label>
-              <input id="email" type="email" placeholder="name@email.com" autocomplete="email">
+            <div class="field">
+              <label for="password" class="muted">סיסמה</label>
+              <input class="input" id="password" name="password" type="password" required minlength="6" placeholder="לפחות 6 תווים" />
             </div>
-          </div>
 
-          <label class="muted" for="password" style="display:block;margin:10px 0 6px">סיסמה</label>
-          <input id="password" type="password" placeholder="••••••••" autocomplete="new-password">
+            <div class="field">
+              <label for="password2" class="muted">אימות סיסמה</label>
+              <input class="input" id="password2" name="password2" type="password" required minlength="6" placeholder="חוזרים על הסיסמה" />
+            </div>
 
-          <label class="muted" for="type" style="display:block;margin:10px 0 6px">את נרשמת כ…</label>
-          <select id="type" style="width:100%;border:1px solid #ddd;border-radius:12px;padding:12px;font-family:inherit">
-            <option value="pregnant">בהריון</option>
-            <option value="parent">הורה לילד/ים</option>
-            <option value="both">גם וגם</option>
-          </select>
+            <p class="muted note">המידע נשמר לצורך הדגמה/פרויקט. לא להזין סיסמאות אמיתיות שיש לך בשירותים אחרים.</p>
 
-          <div class="btn-row" style="margin-top:14px">
-            <button class="btn btn-primary" type="button" onclick="signup()">יצירת חשבון</button>
-            <a class="btn btn-ghost" href="login.html">כבר יש לך חשבון? התחברות</a>
-          </div>
+            <div class="msg" id="msg"></div>
 
-          <div class="answer-box" id="msg" style="display:none;margin-top:12px"></div>
+            <div class="btn-row">
+              <button class="btn btn-primary" type="submit" id="submitBtn">הרשמה</button>
+              <a class="btn btn-ghost" href="login.html">כבר יש לי משתמש</a>
+            </div>
 
-          <p class="muted" style="margin-top:14px">
-            *כרגע דמו: אנחנו “מדמים” הרשמה ומעבירים אותך ל־Login.
-          </p>
+            <div class="tiny-links muted">
+              <span>בהרשמה את מסכימה ל־</span>
+              <a href="terms.html">תנאי שימוש</a>
+              <span>ו־</span>
+              <a href="privacy.html">מדיניות פרטיות</a>
+            </div>
+          </form>
         </div>
       </div>
     </section>
   </main>
 
+  <!-- Footer -->
   <footer>
     <div class="container foot-grid">
       <div class="foot">
@@ -86,23 +120,64 @@
   </footer>
 
   <script>
-    function signup(){
-      const u = document.getElementById('username').value.trim();
-      const e = document.getElementById('email').value.trim();
-      const p = document.getElementById('password').value.trim();
-      const msg = document.getElementById('msg');
+    const form = document.getElementById("registerForm");
+    const msg = document.getElementById("msg");
+    const btn = document.getElementById("submitBtn");
 
-      if(!u || !e || !p){
-        msg.style.display = 'block';
-        msg.textContent = 'נא למלא שם משתמש, אימייל וסיסמה.';
+    function setMsg(type, text){
+      msg.className = "msg " + (type || "");
+      msg.textContent = text || "";
+      msg.style.display = text ? "block" : "none";
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      setMsg("", "");
+
+      const email = (document.getElementById("email").value || "").trim();
+      const password = document.getElementById("password").value || "";
+      const password2 = document.getElementById("password2").value || "";
+
+      if (password.length < 6){
+        setMsg("error", "הסיסמה חייבת להיות לפחות 6 תווים.");
+        return;
+      }
+      if (password !== password2){
+        setMsg("error", "הסיסמאות לא תואמות. נסי שוב.");
         return;
       }
 
-      msg.style.display = 'block';
-      msg.textContent = 'נרשמת בהצלחה (דמו). מעבירים אותך להתחברות…';
+      btn.disabled = true;
+      btn.textContent = "נרשמת…";
 
-      setTimeout(()=> window.location.href = 'login.html', 900);
-    }
+      try {
+        const res = await fetch("/.netlify/functions/signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok){
+          setMsg("error", data.error || "שגיאה בהרשמה. נסי שוב.");
+          btn.disabled = false;
+          btn.textContent = "הרשמה";
+          return;
+        }
+
+        // שמירת טוקן התחברות
+        localStorage.setItem("sp_token", data.token);
+
+        setMsg("ok", "נרשמת בהצלחה! מעבירה אותך לפרופיל…");
+        setTimeout(() => { window.location.href = "profile.html"; }, 600);
+
+      } catch (err) {
+        setMsg("error", "בעיה בתקשורת לשרת. בדקי את ה-Deploy ב-Netlify.");
+        btn.disabled = false;
+        btn.textContent = "הרשמה";
+      }
+    });
   </script>
 </body>
 </html>
