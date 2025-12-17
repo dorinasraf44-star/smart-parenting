@@ -1,58 +1,76 @@
 import { neon } from "@netlify/neon";
-import crypto from "crypto";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
-function json(statusCode, body) {
-  return {
-    statusCode,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  };
-}
-
-function hashPassword(password) {
-  const salt = crypto.randomBytes(16).toString("hex");
-  const hash = crypto.scryptSync(password, salt, 64).toString("hex");
-  return `${salt}:${hash}`;
-}
-
-export async function handler(event) {
-  if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
-
-  let data;
-  try { data = JSON.parse(event.body || "{}"); }
-  catch { return json(400, { error: "Invalid JSON" }); }
-
-  const email = (data.email || "").trim().toLowerCase();
-  const password = data.password || "";
-
-  if (!email || password.length < 6) {
-    return json(400, { error: "Email required + password min 6 chars" });
-  }
-
-  const sql = neon(); // uses NETLIFY_DATABASE_URL automatically
-
+export default async (req, context) => {
   try {
-    const password_hash = hashPassword(password);
+    if (req.method !== "POST") {
+      return new Response(JSON.stringify({ error: "Method not allowed" }), {
+        status: 405,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
-    const [user] = await sql`
+    const { email, password } = await req.json();
+    const cleanEmail = (email || "").trim().toLowerCase();
+
+    if (!cleanEmail || !password || password.length < 6) {
+      return new Response(JSON.stringify({ error: "Invalid input" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const sql = neon(); // uses NETLIFY_DATABASE_URL automatically
+
+    // create table if not exists
+    await sql`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `;
+
+    // check existing
+    const existing = await sql`SELECT id FROM users WHERE email = ${cleanEmail} LIMIT 1;`;
+    if (existing.length) {
+      return new Response(JSON.stringify({ error: "Email already registered" }), {
+        status: 409,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const hash = await bcrypt.hash(password, 10);
+    const inserted = await sql`
       INSERT INTO users (email, password_hash)
-      VALUES (${email}, ${password_hash})
+      VALUES (${cleanEmail}, ${hash})
       RETURNING id, email, created_at;
     `;
 
-    // create session token
-    const [session] = await sql`
-      INSERT INTO sessions (user_id)
-      VALUES (${user.id})
-      RETURNING token, expires_at;
-    `;
-
-    return json(200, { ok: true, token: session.token, user: { id: user.id, email: user.email } });
-  } catch (e) {
-    const msg = String(e?.message || e);
-    if (msg.includes("users_email_key") || msg.includes("duplicate key")) {
-      return json(409, { error: "Email already exists" });
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      return new Response(JSON.stringify({ error: "Missing JWT_SECRET env var" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
     }
-    return json(500, { error: "Server error", details: msg });
+
+    const token = jwt.sign(
+      { userId: inserted[0].id, email: inserted[0].email },
+      secret,
+      { expiresIn: "7d" }
+    );
+
+    return new Response(JSON.stringify({ token, user: inserted[0] }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: "Server error", details: String(e?.message || e) }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
-}
+};
