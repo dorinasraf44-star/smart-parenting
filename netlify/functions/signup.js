@@ -1,116 +1,130 @@
-import { neon } from "@netlify/neon";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-
-const sql = neon();
+const { Client } = require("pg");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 function json(statusCode, body) {
   return {
     statusCode,
-    headers: { "Content-Type": "application/json; charset=utf-8" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   };
 }
 
-function isInt(n) {
-  return Number.isInteger(n) && n >= 0;
+function getDbUrl() {
+  // Netlify DB (Neon extension) בד"כ נותן את שניהם
+  return (
+    process.env.NETLIFY_DATABASE_URL_UNPOOLED ||
+    process.env.NETLIFY_DATABASE_URL
+  );
 }
 
-export async function handler(event) {
-  if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
+exports.handler = async (event) => {
+  if (event.httpMethod !== "POST") {
+    return json(405, { error: "Method not allowed" });
+  }
+
+  const JWT_SECRET = process.env.JWT_SECRET;
+  if (!JWT_SECRET) {
+    return json(500, { error: "Missing JWT_SECRET env var in Netlify" });
+  }
+
+  let payload;
+  try {
+    payload = JSON.parse(event.body || "{}");
+  } catch {
+    return json(400, { error: "Invalid JSON" });
+  }
+
+  const email = (payload.email || "").trim().toLowerCase();
+  const password = payload.password || "";
+
+  const fullName = (payload.fullName || "").trim();
+  const userType = payload.userType; // 'pregnant' | 'parent'
+  const childrenCount = Number.isFinite(Number(payload.childrenCount))
+    ? Number(payload.childrenCount)
+    : 0;
+
+  const pregnancyWeek =
+    payload.pregnancyWeek === "" || payload.pregnancyWeek === null || payload.pregnancyWeek === undefined
+      ? null
+      : Number(payload.pregnancyWeek);
+
+  // childrenNames מגיע כ-array של מחרוזות
+  const childrenNames = Array.isArray(payload.childrenNames)
+    ? payload.childrenNames.map((x) => String(x || "").trim()).filter(Boolean)
+    : [];
+
+  if (!email || !email.includes("@")) return json(400, { error: "אימייל לא תקין." });
+  if (!password || password.length < 6) return json(400, { error: "הסיסמה חייבת להיות לפחות 6 תווים." });
+  if (!fullName) return json(400, { error: "חובה למלא שם." });
+  if (userType !== "pregnant" && userType !== "parent") {
+    return json(400, { error: "סוג משתמש לא תקין." });
+  }
+
+  if (userType === "pregnant") {
+    if (!Number.isFinite(pregnancyWeek) || pregnancyWeek < 1 || pregnancyWeek > 45) {
+      return json(400, { error: "שבוע הריון חייב להיות מספר בין 1 ל-45." });
+    }
+  }
+
+  if (userType === "parent") {
+    if (!Number.isFinite(childrenCount) || childrenCount < 0 || childrenCount > 20) {
+      return json(400, { error: "מספר ילדים לא תקין." });
+    }
+    // לא חובה שמות, אבל אם נתנו—נשמור
+    if (childrenCount === 0 && childrenNames.length > 0) {
+      // לא נכשיל, רק ננקה
+    }
+  }
+
+  const dbUrl = getDbUrl();
+  if (!dbUrl) return json(500, { error: "Missing NETLIFY_DATABASE_URL env var" });
+
+  const client = new Client({
+    connectionString: dbUrl,
+    ssl: { rejectUnauthorized: false },
+  });
 
   try {
-    const body = JSON.parse(event.body || "{}");
+    await client.connect();
 
-    const email = String(body.email || "").trim().toLowerCase();
-    const password = String(body.password || "");
-
-    const full_name = String(body.full_name || "").trim();
-    const user_type = String(body.user_type || "").trim(); // 'pregnant' | 'parent'
-
-    // אופציונלי לפי סוג
-    const pregnancy_week_raw = body.pregnancy_week;
-    const children_names_raw = Array.isArray(body.children_names) ? body.children_names : [];
-
-    if (!email || !email.includes("@")) return json(400, { error: "אימייל לא תקין." });
-    if (password.length < 6) return json(400, { error: "הסיסמה חייבת להיות לפחות 6 תווים." });
-    if (!full_name) return json(400, { error: "חסר שם." });
-    if (user_type !== "pregnant" && user_type !== "parent") {
-      return json(400, { error: "סוג משתמש לא תקין." });
+    const existing = await client.query("SELECT id FROM users WHERE email=$1", [email]);
+    if (existing.rows.length > 0) {
+      return json(409, { error: "האימייל כבר רשום במערכת." });
     }
 
-    // בדיקת משתמש קיים
-    const existing = await sql`SELECT id FROM users WHERE email = ${email} LIMIT 1;`;
-    if (existing.length > 0) return json(409, { error: "המשתמש כבר קיים. נסי להתחבר." });
+    const passwordHash = await bcrypt.hash(password, 10);
 
-    // ולידציה לפי סוג
-    let pregnancy_week = null;
-    let children_names = [];
+    const insert = await client.query(
+      `
+      INSERT INTO users (email, password_hash, full_name, user_type, children_count, pregnancy_week, children_names, created_at)
+      VALUES ($1,$2,$3,$4,$5,$6,$7, NOW())
+      RETURNING id, email, full_name, user_type, children_count, pregnancy_week, children_names, created_at
+      `,
+      [
+        email,
+        passwordHash,
+        fullName,
+        userType,
+        userType === "parent" ? childrenCount : 0,
+        userType === "pregnant" ? pregnancyWeek : null,
+        JSON.stringify(userType === "parent" ? childrenNames : []),
+      ]
+    );
 
-    if (user_type === "pregnant") {
-      const pw = Number(pregnancy_week_raw);
-      if (!Number.isFinite(pw) || !Number.isInteger(pw) || pw < 1 || pw > 45) {
-        return json(400, { error: "שבוע הריון חייב להיות מספר בין 1 ל-45." });
-      }
-      pregnancy_week = pw;
-    }
+    const user = insert.rows[0];
 
-    if (user_type === "parent") {
-      children_names = children_names_raw
-        .map((x) => String(x || "").trim())
-        .filter((x) => x.length > 0);
+    const token = jwt.sign(
+      { userId: user.id, email: user.email },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
 
-      if (children_names.length === 0) {
-        return json(400, { error: "להורה לילדים צריך להזין לפחות שם ילד אחד." });
-      }
-      if (children_names.length > 10) {
-        return json(400, { error: "אפשר עד 10 ילדים בשלב הזה." });
-      }
-    }
-
-    const password_hash = await bcrypt.hash(password, 10);
-
-    // יוצרים משתמש עם שדות פרופיל בסיסיים
-    const inserted = await sql`
-      INSERT INTO users (email, password_hash, full_name, user_type, pregnancy_week, children_count)
-      VALUES (
-        ${email},
-        ${password_hash},
-        ${full_name},
-        ${user_type},
-        ${pregnancy_week},
-        ${user_type === "parent" ? children_names.length : null}
-      )
-      RETURNING id, email, full_name, user_type, pregnancy_week, children_count, created_at;
-    `;
-
-    const user = inserted[0];
-
-    // אם parent – מוסיפים ילדים לטבלת children
-    if (user_type === "parent") {
-      for (const name of children_names) {
-        await sql`INSERT INTO children (user_id, child_name) VALUES (${user.id}, ${name});`;
-      }
-    }
-
-    const secret = process.env.JWT_SECRET;
-    if (!secret) return json(500, { error: "חסר JWT_SECRET ב-Netlify Environment Variables." });
-
-    const token = jwt.sign({ sub: user.id, email: user.email }, secret, { expiresIn: "7d" });
-
-    return json(200, {
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        full_name: user.full_name,
-        user_type: user.user_type,
-        pregnancy_week: user.pregnancy_week,
-        children_count: user.children_count,
-        created_at: user.created_at,
-      },
-    });
-  } catch (e) {
-    return json(500, { error: "שגיאה בשרת (signup)." });
+    return json(200, { token, user });
+  } catch (err) {
+    console.error(err);
+    return json(500, { error: "Server error" });
+  } finally {
+    try { await client.end(); } catch {}
   }
-}
+};
