@@ -76,16 +76,59 @@
     </div>
   </footer>
 
-  <script>
-    // דמו: "שם משתמש" מה-URL: profile.html?user=dorin
-    const params = new URLSearchParams(location.search);
-    const user = params.get('user') || 'משתמש';
-    document.getElementById('hello').textContent = `היי, ${user}`;
+<script>
+  async function loadMe(){
+    const token = localStorage.getItem("sp_token");
+    if (!token){
+      // לא מחובר
+      window.location.href = "login.html";
+      return;
+    }
 
-    // דמו נתונים (בהמשך יגיע מה-SQL דרך API)
-    document.getElementById('pregStatus').textContent = 'שבוע: 22 | תאריך יעד: 15.4.2026';
-    document.getElementById('kidsStatus').textContent = 'מספר ילדים: 0 | גילאים: —';
-    document.getElementById('coinsStatus').textContent = 'יתרה: 120 | פעולות אחרונות: מילוי שאלון שינה';
-  </script>
+    try {
+      const res = await fetch("/.netlify/functions/me", {
+        method: "GET",
+        headers: { "Authorization": "Bearer " + token }
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok){
+        localStorage.removeItem("sp_token");
+        window.location.href = "login.html";
+        return;
+      }
+
+      const user = data.user;
+
+      // פה את מחברת לכותרת שלך בפרופיל:
+      const titleEl = document.getElementById("profileHello"); // תוודאי שיש אלמנט כזה
+      if (titleEl){
+        titleEl.textContent = "היי, " + (user.full_name || "משתמש");
+      }
+
+      // ואם את רוצה להציג מתחת:
+      const infoEl = document.getElementById("profileInfo"); // תוודאי שיש אלמנט כזה
+      if (infoEl){
+        let extra = "";
+        if (user.user_type === "pregnant"){
+          extra = "בהיריון • שבוע " + (user.pregnancy_week ?? "-");
+        } else if (user.user_type === "parent"){
+          extra = "הורה • ילדים: " + (user.children_count ?? 0);
+        }
+        infoEl.textContent = extra;
+      }
+
+    } catch (e){
+      console.log(e);
+      // אם יש בעיית תקשורת – לא זורקת אותך ישר
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", loadMe);
+</script>
+
+
+  
 </body>
 </html>
+
