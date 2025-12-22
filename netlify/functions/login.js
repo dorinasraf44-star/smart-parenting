@@ -2,74 +2,62 @@ import { neon } from "@netlify/neon";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
-export default async (req, context) => {
+const sql = neon();
+
+function json(statusCode, body) {
+  return {
+    statusCode,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+    },
+    body: JSON.stringify(body),
+  };
+}
+
+export async function handler(event) {
+  if (event.httpMethod !== "POST") {
+    return json(405, { error: "Method not allowed" });
+  }
+
   try {
-    if (req.method !== "POST") {
-      return new Response(JSON.stringify({ error: "Method not allowed" }), {
-        status: 405,
-        headers: { "Content-Type": "application/json" },
-      });
+    const { email, password } = JSON.parse(event.body || "{}");
+
+    const cleanEmail = String(email || "").trim().toLowerCase();
+    const cleanPassword = String(password || "");
+
+    if (!cleanEmail || !cleanPassword) {
+      return json(400, { error: "חסרים פרטים." });
     }
 
-    const { email, password } = await req.json();
-    const cleanEmail = (email || "").trim().toLowerCase();
+    const rows =
+      await sql`SELECT id, email, password_hash
+               FROM users
+               WHERE email = ${cleanEmail}
+               LIMIT 1;`;
 
-    if (!cleanEmail || !password) {
-      return new Response(JSON.stringify({ error: "Invalid input" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+    if (rows.length === 0) {
+      return json(401, { error: "פרטי התחברות לא תקינים." });
     }
 
-    const sql = neon();
-
-    const rows = await sql`
-      SELECT id, email, password_hash, created_at
-      FROM users
-      WHERE email = ${cleanEmail}
-      LIMIT 1;
-    `;
-
-    if (!rows.length) {
-      return new Response(JSON.stringify({ error: "Email or password incorrect" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    const ok = await bcrypt.compare(password, rows[0].password_hash);
+    const user = rows[0];
+    const ok = await bcrypt.compare(cleanPassword, user.password_hash);
     if (!ok) {
-      return new Response(JSON.stringify({ error: "Email or password incorrect" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
+      return json(401, { error: "פרטי התחברות לא תקינים." });
     }
 
     const secret = process.env.JWT_SECRET;
     if (!secret) {
-      return new Response(JSON.stringify({ error: "Missing JWT_SECRET env var" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
+      return json(500, { error: "חסר JWT_SECRET ב-Netlify Environment Variables." });
     }
 
     const token = jwt.sign(
-      { userId: rows[0].id, email: rows[0].email },
+      { sub: user.id, email: user.email },
       secret,
       { expiresIn: "7d" }
     );
 
-    return new Response(JSON.stringify({
-      token,
-      user: { id: rows[0].id, email: rows[0].email, created_at: rows[0].created_at }
-    }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: "Server error", details: String(e?.message || e) }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return json(200, { token, user: { id: user.id, email: user.email } });
+  } catch (err) {
+    return json(500, { error: "שגיאה בשרת (login)." });
   }
-};
+}
