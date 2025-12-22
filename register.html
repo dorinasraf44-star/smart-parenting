@@ -36,11 +36,33 @@
     .msg.ok { display:block; border-color: rgba(0,140,60,.25); }
     .tiny-links { margin-top: 12px; display:flex; gap:10px; flex-wrap: wrap; }
     .tiny-links a { text-decoration: underline; }
+
+    /* תוספות מינימליות לשדות החדשים */
+    .row { display:flex; gap:12px; flex-wrap: wrap; }
+    .row .field { flex: 1 1 220px; }
+    .pill {
+      width:100%;
+      padding: 12px 14px;
+      border: 1px solid rgba(0,0,0,.12);
+      border-radius: 12px;
+      background: #fff;
+      font-size: 1rem;
+    }
+    .children-list { margin-top: 10px; display:flex; flex-direction: column; gap:10px; }
+    .child-item { display:flex; gap:10px; align-items: center; }
+    .child-item input { flex: 1; }
+    .btn-small {
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(0,0,0,.12);
+      background: rgba(255,255,255,.8);
+      cursor: pointer;
+    }
+    .hide { display:none; }
   </style>
 </head>
 
 <body>
-  <!-- Header -->
   <header aria-label="סרגל עליון">
     <div class="container nav" role="navigation" aria-label="ניווט ראשי">
       <div class="brand">הורות חכמה <small>| Smart Parenting</small></div>
@@ -70,19 +92,58 @@
           <h3 style="margin-top:0">יצירת חשבון</h3>
 
           <form id="registerForm" autocomplete="on">
+
+            <div class="field">
+              <label for="full_name" class="muted">שם מלא</label>
+              <input class="input" id="full_name" name="full_name" type="text" required placeholder="דורין אסרף" />
+            </div>
+
             <div class="field">
               <label for="email" class="muted">אימייל</label>
               <input class="input" id="email" name="email" type="email" required placeholder="name@example.com" />
             </div>
 
-            <div class="field">
-              <label for="password" class="muted">סיסמה</label>
-              <input class="input" id="password" name="password" type="password" required minlength="6" placeholder="לפחות 6 תווים" />
+            <div class="row">
+              <div class="field">
+                <label for="password" class="muted">סיסמה</label>
+                <input class="input" id="password" name="password" type="password" required minlength="6" placeholder="לפחות 6 תווים" />
+              </div>
+
+              <div class="field">
+                <label for="password2" class="muted">אימות סיסמה</label>
+                <input class="input" id="password2" name="password2" type="password" required minlength="6" placeholder="חוזרים על הסיסמה" />
+              </div>
             </div>
 
             <div class="field">
-              <label for="password2" class="muted">אימות סיסמה</label>
-              <input class="input" id="password2" name="password2" type="password" required minlength="6" placeholder="חוזרים על הסיסמה" />
+              <label for="user_type" class="muted">סוג משתמש</label>
+              <select class="pill" id="user_type" name="user_type" required>
+                <option value="" selected disabled>בחרי…</option>
+                <option value="pregnant">הורה בהריון</option>
+                <option value="parent">הורה עם ילדים</option>
+              </select>
+            </div>
+
+            <!-- בהריון -->
+            <div id="pregnantBox" class="hide">
+              <div class="field">
+                <label for="pregnancy_week" class="muted">שבוע הריון</label>
+                <input class="input" id="pregnancy_week" name="pregnancy_week" type="number" min="1" max="45" placeholder="לדוגמה 24" />
+              </div>
+            </div>
+
+            <!-- ילדים -->
+            <div id="parentBox" class="hide">
+              <div class="field">
+                <label class="muted">שמות ילדים</label>
+
+                <div class="children-list" id="childrenList"></div>
+
+                <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+                  <button type="button" class="btn-small" id="addChildBtn">הוספת ילד</button>
+                  <span class="muted" style="align-self:center;">(מינימום ילד אחד)</span>
+                </div>
+              </div>
             </div>
 
             <p class="muted note">המידע נשמר לצורך הדגמה/פרויקט. לא להזין סיסמאות אמיתיות שיש לך בשירותים אחרים.</p>
@@ -106,7 +167,6 @@
     </section>
   </main>
 
-  <!-- Footer -->
   <footer>
     <div class="container foot-grid">
       <div class="foot">
@@ -124,27 +184,100 @@
     const msg = document.getElementById("msg");
     const btn = document.getElementById("submitBtn");
 
+    const userType = document.getElementById("user_type");
+    const pregnantBox = document.getElementById("pregnantBox");
+    const parentBox = document.getElementById("parentBox");
+
+    const childrenList = document.getElementById("childrenList");
+    const addChildBtn = document.getElementById("addChildBtn");
+
     function setMsg(type, text){
       msg.className = "msg " + (type || "");
       msg.textContent = text || "";
       msg.style.display = text ? "block" : "none";
     }
 
+    function toggleBoxes(){
+      const v = userType.value;
+      pregnantBox.classList.toggle("hide", v !== "pregnant");
+      parentBox.classList.toggle("hide", v !== "parent");
+    }
+
+    userType.addEventListener("change", () => {
+      toggleBoxes();
+      if (userType.value === "parent" && childrenList.children.length === 0) {
+        addChildField(); // לפחות אחד
+      }
+    });
+
+    function addChildField(value=""){
+      const wrap = document.createElement("div");
+      wrap.className = "child-item";
+
+      const input = document.createElement("input");
+      input.className = "input child-name";
+      input.type = "text";
+      input.placeholder = "שם הילד/ה";
+      input.value = value;
+
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "btn-small";
+      removeBtn.textContent = "הסרה";
+
+      removeBtn.addEventListener("click", () => {
+        wrap.remove();
+      });
+
+      wrap.appendChild(input);
+      wrap.appendChild(removeBtn);
+      childrenList.appendChild(wrap);
+    }
+
+    addChildBtn.addEventListener("click", () => {
+      if (childrenList.children.length >= 10) {
+        setMsg("error", "אפשר עד 10 ילדים בשלב הזה.");
+        return;
+      }
+      addChildField();
+    });
+
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       setMsg("", "");
 
+      const full_name = (document.getElementById("full_name").value || "").trim();
       const email = (document.getElementById("email").value || "").trim();
       const password = document.getElementById("password").value || "";
       const password2 = document.getElementById("password2").value || "";
+      const user_type = userType.value;
 
-      if (password.length < 6){
-        setMsg("error", "הסיסמה חייבת להיות לפחות 6 תווים.");
-        return;
+      if (!full_name) { setMsg("error", "חסר שם."); return; }
+      if (password.length < 6){ setMsg("error", "הסיסמה חייבת להיות לפחות 6 תווים."); return; }
+      if (password !== password2){ setMsg("error", "הסיסמאות לא תואמות. נסי שוב."); return; }
+      if (!user_type){ setMsg("error", "בחרי סוג משתמש."); return; }
+
+      let pregnancy_week = null;
+      let children_names = [];
+
+      if (user_type === "pregnant") {
+        const val = Number(document.getElementById("pregnancy_week").value);
+        if (!Number.isInteger(val) || val < 1 || val > 45) {
+          setMsg("error", "שבוע הריון חייב להיות מספר בין 1 ל-45.");
+          return;
+        }
+        pregnancy_week = val;
       }
-      if (password !== password2){
-        setMsg("error", "הסיסמאות לא תואמות. נסי שוב.");
-        return;
+
+      if (user_type === "parent") {
+        children_names = Array.from(document.querySelectorAll(".child-name"))
+          .map(i => (i.value || "").trim())
+          .filter(Boolean);
+
+        if (children_names.length === 0) {
+          setMsg("error", "להורה עם ילדים צריך להזין לפחות שם ילד אחד.");
+          return;
+        }
       }
 
       btn.disabled = true;
@@ -154,7 +287,14 @@
         const res = await fetch("/.netlify/functions/signup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password })
+          body: JSON.stringify({
+            full_name,
+            email,
+            password,
+            user_type,
+            pregnancy_week,
+            children_names
+          })
         });
 
         const data = await res.json().catch(() => ({}));
@@ -166,8 +306,8 @@
           return;
         }
 
-        // שמירת טוקן התחברות
         localStorage.setItem("sp_token", data.token);
+        localStorage.setItem("sp_user_full_name", data.user?.full_name || full_name);
 
         setMsg("ok", "נרשמת בהצלחה! מעבירה אותך לפרופיל…");
         setTimeout(() => { window.location.href = "profile.html"; }, 600);
@@ -178,6 +318,9 @@
         btn.textContent = "הרשמה";
       }
     });
+
+    // init
+    toggleBoxes();
   </script>
 </body>
 </html>
