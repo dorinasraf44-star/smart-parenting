@@ -2,75 +2,64 @@ import { neon } from "@netlify/neon";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
-export default async (req, context) => {
+const sql = neon(); // משתמש אוטומטית ב-NETLIFY_DATABASE_URL
+
+function json(statusCode, body) {
+  return {
+    statusCode,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+    },
+    body: JSON.stringify(body),
+  };
+}
+
+export async function handler(event) {
+  if (event.httpMethod !== "POST") {
+    return json(405, { error: "Method not allowed" });
+  }
+
   try {
-    if (req.method !== "POST") {
-      return new Response(JSON.stringify({ error: "Method not allowed" }), {
-        status: 405,
-        headers: { "Content-Type": "application/json" },
-      });
+    const { email, password } = JSON.parse(event.body || "{}");
+
+    const cleanEmail = String(email || "").trim().toLowerCase();
+    const cleanPassword = String(password || "");
+
+    if (!cleanEmail || !cleanEmail.includes("@")) {
+      return json(400, { error: "אימייל לא תקין." });
+    }
+    if (cleanPassword.length < 6) {
+      return json(400, { error: "הסיסמה חייבת להיות לפחות 6 תווים." });
     }
 
-    const { email, password } = await req.json();
-    const cleanEmail = (email || "").trim().toLowerCase();
-
-    if (!cleanEmail || !password || password.length < 6) {
-      return new Response(JSON.stringify({ error: "Invalid input" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    const sql = neon(); // uses NETLIFY_DATABASE_URL automatically
-
-    // create table if not exists
-    await sql`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        email TEXT UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
-        created_at TIMESTAMPTZ DEFAULT NOW()
-      );
-    `;
-
-    // check existing
+    // האם משתמש קיים?
     const existing = await sql`SELECT id FROM users WHERE email = ${cleanEmail} LIMIT 1;`;
-    if (existing.length) {
-      return new Response(JSON.stringify({ error: "Email already registered" }), {
-        status: 409,
-        headers: { "Content-Type": "application/json" },
-      });
+    if (existing.length > 0) {
+      return json(409, { error: "המשתמש כבר קיים. נסי להתחבר." });
     }
 
-    const hash = await bcrypt.hash(password, 10);
-    const inserted = await sql`
-      INSERT INTO users (email, password_hash)
-      VALUES (${cleanEmail}, ${hash})
-      RETURNING id, email, created_at;
-    `;
+    const password_hash = await bcrypt.hash(cleanPassword, 10);
+
+    const inserted =
+      await sql`INSERT INTO users (email, password_hash)
+               VALUES (${cleanEmail}, ${password_hash})
+               RETURNING id, email, created_at;`;
+
+    const user = inserted[0];
 
     const secret = process.env.JWT_SECRET;
     if (!secret) {
-      return new Response(JSON.stringify({ error: "Missing JWT_SECRET env var" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
+      return json(500, { error: "חסר JWT_SECRET ב-Netlify Environment Variables." });
     }
 
     const token = jwt.sign(
-      { userId: inserted[0].id, email: inserted[0].email },
+      { sub: user.id, email: user.email },
       secret,
       { expiresIn: "7d" }
     );
 
-    return new Response(JSON.stringify({ token, user: inserted[0] }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: "Server error", details: String(e?.message || e) }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return json(200, { token, user: { id: user.id, email: user.email, created_at: user.created_at } });
+  } catch (err) {
+    return json(500, { error: "שגיאה בשרת (signup)." });
   }
-};
+}
