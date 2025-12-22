@@ -2,129 +2,76 @@ const { Client } = require("pg");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-function json(statusCode, body) {
-  return {
-    statusCode,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  };
-}
-
 function getDbUrl() {
-  // Netlify DB (Neon extension) בד"כ נותן את שניהם
-  return (
-    process.env.NETLIFY_DATABASE_URL_UNPOOLED ||
-    process.env.NETLIFY_DATABASE_URL
-  );
+  return process.env.NETLIFY_DATABASE_URL || process.env.NETLIFY_DATABASE_URL_UNPOOLED;
 }
 
 exports.handler = async (event) => {
-  if (event.httpMethod !== "POST") {
-    return json(405, { error: "Method not allowed" });
-  }
-
-  const JWT_SECRET = process.env.JWT_SECRET;
-  if (!JWT_SECRET) {
-    return json(500, { error: "Missing JWT_SECRET env var in Netlify" });
-  }
-
-  let payload;
   try {
-    payload = JSON.parse(event.body || "{}");
-  } catch {
-    return json(400, { error: "Invalid JSON" });
-  }
-
-  const email = (payload.email || "").trim().toLowerCase();
-  const password = payload.password || "";
-
-  const fullName = (payload.fullName || "").trim();
-  const userType = payload.userType; // 'pregnant' | 'parent'
-  const childrenCount = Number.isFinite(Number(payload.childrenCount))
-    ? Number(payload.childrenCount)
-    : 0;
-
-  const pregnancyWeek =
-    payload.pregnancyWeek === "" || payload.pregnancyWeek === null || payload.pregnancyWeek === undefined
-      ? null
-      : Number(payload.pregnancyWeek);
-
-  // childrenNames מגיע כ-array של מחרוזות
-  const childrenNames = Array.isArray(payload.childrenNames)
-    ? payload.childrenNames.map((x) => String(x || "").trim()).filter(Boolean)
-    : [];
-
-  if (!email || !email.includes("@")) return json(400, { error: "אימייל לא תקין." });
-  if (!password || password.length < 6) return json(400, { error: "הסיסמה חייבת להיות לפחות 6 תווים." });
-  if (!fullName) return json(400, { error: "חובה למלא שם." });
-  if (userType !== "pregnant" && userType !== "parent") {
-    return json(400, { error: "סוג משתמש לא תקין." });
-  }
-
-  if (userType === "pregnant") {
-    if (!Number.isFinite(pregnancyWeek) || pregnancyWeek < 1 || pregnancyWeek > 45) {
-      return json(400, { error: "שבוע הריון חייב להיות מספר בין 1 ל-45." });
+    if (event.httpMethod !== "POST") {
+      return { statusCode: 405, body: JSON.stringify({ error: "Method not allowed" }) };
     }
-  }
 
-  if (userType === "parent") {
-    if (!Number.isFinite(childrenCount) || childrenCount < 0 || childrenCount > 20) {
-      return json(400, { error: "מספר ילדים לא תקין." });
+    const body = JSON.parse(event.body || "{}");
+    const { email, password, full_name, user_type, children_count, pregnancy_week } = body;
+
+    if (!email || !password) {
+      return { statusCode: 400, body: JSON.stringify({ error: "Missing email or password" }) };
     }
-    // לא חובה שמות, אבל אם נתנו—נשמור
-    if (childrenCount === 0 && childrenNames.length > 0) {
-      // לא נכשיל, רק ננקה
+    if (!full_name || !user_type) {
+      return { statusCode: 400, body: JSON.stringify({ error: "Missing profile fields" }) };
     }
-  }
 
-  const dbUrl = getDbUrl();
-  if (!dbUrl) return json(500, { error: "Missing NETLIFY_DATABASE_URL env var" });
+    const dbUrl = getDbUrl();
+    if (!dbUrl) {
+      return { statusCode: 500, body: JSON.stringify({ error: "Database URL missing in env" }) };
+    }
 
-  const client = new Client({
-    connectionString: dbUrl,
-    ssl: { rejectUnauthorized: false },
-  });
-
-  try {
+    const client = new Client({ connectionString: dbUrl, ssl: { rejectUnauthorized: false } });
     await client.connect();
 
-    const existing = await client.query("SELECT id FROM users WHERE email=$1", [email]);
-    if (existing.rows.length > 0) {
-      return json(409, { error: "האימייל כבר רשום במערכת." });
+    const hashed = await bcrypt.hash(password, 10);
+
+    // IMPORTANT: מניחים שיש לך עמודות: full_name, user_type, children_count, pregnancy_week
+    const q = `
+      INSERT INTO users (email, password_hash, full_name, user_type, children_count, pregnancy_week)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING id, email, full_name, user_type, children_count, pregnancy_week, created_at;
+    `;
+
+    const values = [
+      email.toLowerCase(),
+      hashed,
+      full_name,
+      user_type,
+      Number.isFinite(children_count) ? children_count : 0,
+      pregnancy_week === null || pregnancy_week === undefined ? null : pregnancy_week
+    ];
+
+    let row;
+    try {
+      const r = await client.query(q, values);
+      row = r.rows[0];
+    } catch (e) {
+      // אם email ייחודי אצלך -> זה ייפול פה
+      await client.end();
+      return { statusCode: 400, body: JSON.stringify({ error: "אימייל כבר קיים במערכת." }) };
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    const insert = await client.query(
-      `
-      INSERT INTO users (email, password_hash, full_name, user_type, children_count, pregnancy_week, children_names, created_at)
-      VALUES ($1,$2,$3,$4,$5,$6,$7, NOW())
-      RETURNING id, email, full_name, user_type, children_count, pregnancy_week, children_names, created_at
-      `,
-      [
-        email,
-        passwordHash,
-        fullName,
-        userType,
-        userType === "parent" ? childrenCount : 0,
-        userType === "pregnant" ? pregnancyWeek : null,
-        JSON.stringify(userType === "parent" ? childrenNames : []),
-      ]
-    );
-
-    const user = insert.rows[0];
+    await client.end();
 
     const token = jwt.sign(
-      { userId: user.id, email: user.email },
-      JWT_SECRET,
+      { user_id: row.id, email: row.email },
+      process.env.JWT_SECRET || "dev_secret_change_me",
       { expiresIn: "7d" }
     );
 
-    return json(200, { token, user });
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ token, user: row })
+    };
+
   } catch (err) {
-    console.error(err);
-    return json(500, { error: "Server error" });
-  } finally {
-    try { await client.end(); } catch {}
+    return { statusCode: 500, body: JSON.stringify({ error: "Server error", details: String(err) }) };
   }
 };
