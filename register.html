@@ -2,182 +2,82 @@
 <html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>הרשמה | Smart Parenting</title>
-  <meta name="description" content="הרשמה ל-Smart Parenting | הורות חכמה" />
-  <link rel="stylesheet" href="style.css" />
-
-  <style>
-    /* תוספת קטנה רק לעמודי auth (עדין באותו קו עיצובי) */
-    .auth-wrap { padding: 48px 0 70px; }
-    .auth-card { max-width: 520px; margin-inline: auto; }
-    .field { margin-top: 12px; }
-    .field label { display:block; margin: 0 0 6px; }
-    .input {
-      width: 100%;
-      padding: 12px 14px;
-      border: 1px solid rgba(0,0,0,.12);
-      border-radius: 12px;
-      outline: none;
-      background: #fff;
-      font-size: 1rem;
-    }
-    .input:focus { box-shadow: 0 0 0 4px rgba(0,0,0,.06); }
-    .note { margin-top: 10px; }
-    .msg {
-      margin-top: 14px;
-      padding: 12px 14px;
-      border-radius: 12px;
-      display: none;
-      border: 1px solid rgba(0,0,0,.08);
-      background: rgba(255,255,255,.75);
-    }
-    .msg.error { display:block; border-color: rgba(200,0,0,.25); }
-    .msg.ok { display:block; border-color: rgba(0,140,60,.25); }
-    .tiny-links { margin-top: 12px; display:flex; gap:10px; flex-wrap: wrap; }
-    .tiny-links a { text-decoration: underline; }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Parenting | הרשמה</title>
+  <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-  <!-- Header -->
-  <header aria-label="סרגל עליון">
-    <div class="container nav" role="navigation" aria-label="ניווט ראשי">
-      <div class="brand">הורות חכמה <small>| Smart Parenting</small></div>
-      <nav class="menu">
-        <a href="index.html">דף הבית</a>
-        <a href="about.html">אודות</a>
-        <a href="profile.html">פרופיל</a>
-        <a href="ai.html">יועץ AI</a>
-        <a href="community.html">הקהילה</a>
-        <a href="surveys.html">שאלונים</a>
-      </nav>
-    </div>
-  </header>
 
-  <main>
-    <section class="hero">
-      <div class="container">
-        <span class="eyebrow">ברוכה הבאה</span>
-        <h1>הרשמה</h1>
-        <p class="lead">יוצרות משתמש כדי לשמור פרופיל, שאלונים ושימושים עתידיים בקהילה וב־AI.</p>
-      </div>
-    </section>
+  <div class="container">
+    <h1>הרשמה</h1>
 
-    <section class="auth-wrap">
-      <div class="container">
-        <div class="card auth-card">
-          <h3 style="margin-top:0">יצירת חשבון</h3>
+    <label for="username">שם משתמש</label>
+    <input type="text" id="username" placeholder="בחרי שם משתמש" />
 
-          <form id="registerForm" autocomplete="on">
-            <div class="field">
-              <label for="email" class="muted">אימייל</label>
-              <input class="input" id="email" name="email" type="email" required placeholder="name@example.com" />
-            </div>
+    <label for="email">אימייל</label>
+    <input type="email" id="email" placeholder="name@email.com" />
 
-            <div class="field">
-              <label for="password" class="muted">סיסמה</label>
-              <input class="input" id="password" name="password" type="password" required minlength="6" placeholder="לפחות 6 תווים" />
-            </div>
+    <label for="password">סיסמה</label>
+    <input type="password" id="password" placeholder="לפחות 6 תווים" />
 
-            <div class="field">
-              <label for="password2" class="muted">אימות סיסמה</label>
-              <input class="input" id="password2" name="password2" type="password" required minlength="6" placeholder="חוזרים על הסיסמה" />
-            </div>
+    <label for="type">סוג משתמש</label>
+    <select id="type">
+      <option value="parent">הורה</option>
+      <option value="pregnant">בהריון</option>
+    </select>
 
-            <p class="muted note">המידע נשמר לצורך הדגמה/פרויקט. לא להזין סיסמאות אמיתיות שיש לך בשירותים אחרים.</p>
+    <button onclick="register()">הירשמי</button>
 
-            <div class="msg" id="msg"></div>
+    <p id="msg" class="message"></p>
 
-            <div class="btn-row">
-              <button class="btn btn-primary" type="submit" id="submitBtn">הרשמה</button>
-              <a class="btn btn-ghost" href="login.html">כבר יש לי משתמש</a>
-            </div>
+    <p style="margin-top: 12px;">
+      כבר יש לך משתמש?
+      <a href="login.html">התחברות</a>
+    </p>
+  </div>
 
-            <div class="tiny-links muted">
-              <span>בהרשמה את מסכימה ל־</span>
-              <a href="terms.html">תנאי שימוש</a>
-              <span>ו־</span>
-              <a href="privacy.html">מדיניות פרטיות</a>
-            </div>
-          </form>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <!-- Footer -->
-  <footer>
-    <div class="container foot-grid">
-      <div class="foot">
-        <div class="brand" style="margin-bottom:6px;">Smart Parenting | הורות חכמה</div>
-        <div class="muted">© 2026 — פרויקט גמר.</div>
-      </div>
-      <div class="foot"><h4>אודות</h4><a href="about.html">על הפלטפורמה</a><br/><a href="about.html#team">הצוות</a></div>
-      <div class="foot"><h4>פרטיות</h4><a href="privacy.html">מדיניות פרטיות</a><br/><a href="terms.html">תנאי שימוש</a></div>
-      <div class="foot"><h4>חברתי</h4><a href="#">Facebook</a><br/><a href="#">Instagram</a></div>
-    </div>
-  </footer>
-
-  <script>
-    const form = document.getElementById("registerForm");
+<script>
+  async function register() {
     const msg = document.getElementById("msg");
-    const btn = document.getElementById("submitBtn");
+    msg.textContent = "שולח...";
+    msg.style.color = "#333";
 
-    function setMsg(type, text){
-      msg.className = "msg " + (type || "");
-      msg.textContent = text || "";
-      msg.style.display = text ? "block" : "none";
+    const username = document.getElementById("username").value.trim();
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+    const type = document.getElementById("type").value;
+
+    try {
+      const res = await fetch("/.netlify/functions/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, email, password, type })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.ok) {
+        msg.textContent = data.error || "שגיאה בהרשמה";
+        msg.style.color = "crimson";
+        return;
+      }
+
+      // שמירה מקומית (למטרת דמו/פרויקט) – בלי טוקן עדיין
+      localStorage.setItem("sp_user", JSON.stringify(data.user));
+
+      msg.textContent = "נרשמת בהצלחה! מעביר לפרופיל...";
+      msg.style.color = "green";
+
+      setTimeout(() => {
+        window.location.href = "profile.html";
+      }, 800);
+
+    } catch (e) {
+      msg.textContent = "נפילה בתקשורת. נסי שוב.";
+      msg.style.color = "crimson";
     }
+  }
+</script>
 
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      setMsg("", "");
-
-      const email = (document.getElementById("email").value || "").trim();
-      const password = document.getElementById("password").value || "";
-      const password2 = document.getElementById("password2").value || "";
-
-      if (password.length < 6){
-        setMsg("error", "הסיסמה חייבת להיות לפחות 6 תווים.");
-        return;
-      }
-      if (password !== password2){
-        setMsg("error", "הסיסמאות לא תואמות. נסי שוב.");
-        return;
-      }
-
-      btn.disabled = true;
-      btn.textContent = "נרשמת…";
-
-      try {
-        const res = await fetch("/.netlify/functions/signup", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password })
-        });
-
-        const data = await res.json().catch(() => ({}));
-
-        if (!res.ok){
-          setMsg("error", data.error || "שגיאה בהרשמה. נסי שוב.");
-          btn.disabled = false;
-          btn.textContent = "הרשמה";
-          return;
-        }
-
-        // שמירת טוקן התחברות
-        localStorage.setItem("sp_token", data.token);
-
-        setMsg("ok", "נרשמת בהצלחה! מעבירה אותך לפרופיל…");
-        setTimeout(() => { window.location.href = "profile.html"; }, 600);
-
-      } catch (err) {
-        setMsg("error", "בעיה בתקשורת לשרת. בדקי את ה-Deploy ב-Netlify.");
-        btn.disabled = false;
-        btn.textContent = "הרשמה";
-      }
-    });
-  </script>
 </body>
 </html>
