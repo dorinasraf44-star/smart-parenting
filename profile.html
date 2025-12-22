@@ -96,36 +96,71 @@
   </footer>
 
   <script>
+    // ===== Logout =====
     const logoutBtn = document.getElementById("logoutBtn");
-
     function logout(e){
       if (e) e.preventDefault();
       localStorage.removeItem("sp_token");
       window.location.href = "login.html";
     }
+    if (logoutBtn) logoutBtn.addEventListener("click", logout);
 
-    logoutBtn.addEventListener("click", logout);
-
+    // ===== Helpers =====
     function safeText(x, fallback="—"){
       if (x === null || x === undefined) return fallback;
       const s = String(x).trim();
       return s ? s : fallback;
     }
 
-    function normalizeKidsNames(val){
-      // Neon מחזיר JSONB לפעמים כמערך, לפעמים כמחרוזת
-      if (!val) return [];
-      if (Array.isArray(val)) return val.map(x => String(x).trim()).filter(Boolean);
+    function asNumber(val, fallback=0){
+      const n = Number(val);
+      return Number.isFinite(n) ? n : fallback;
+    }
 
-      // אם זה טקסט JSON
-      try {
-        const parsed = JSON.parse(val);
-        if (Array.isArray(parsed)) return parsed.map(x => String(x).trim()).filter(Boolean);
-      } catch {}
+    function normalizeKidsNames(val){
+      // אם אין לך עדיין children_names בטבלה - זה יחזיר []
+      if (val === null || val === undefined) return [];
+
+      if (Array.isArray(val)) {
+        return val.map(x => String(x).trim()).filter(Boolean);
+      }
+
+      // אם זה טקסט JSON כמו '["אורי","נועה"]'
+      if (typeof val === "string") {
+        const s = val.trim();
+        if (!s) return [];
+        try {
+          const parsed = JSON.parse(s);
+          if (Array.isArray(parsed)) return parsed.map(x => String(x).trim()).filter(Boolean);
+        } catch {}
+        // אם זה סתם "אורי, נועה"
+        if (s.includes(",")) return s.split(",").map(x => x.trim()).filter(Boolean);
+        // מילה אחת
+        return [s];
+      }
 
       return [];
     }
 
+    function isPregnantType(t){
+      return t === "pregnant" || t === "both";
+    }
+    function isParentType(t){
+      return t === "parent" || t === "both";
+    }
+
+    // ===== UI setters =====
+    function setText(id, text){
+      const el = document.getElementById(id);
+      if (el) el.textContent = text;
+    }
+
+    function setHTML(id, html){
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = html;
+    }
+
+    // ===== Main loader =====
     async function loadMe(){
       const token = localStorage.getItem("sp_token");
       if (!token){
@@ -142,67 +177,68 @@
         const data = await res.json().catch(() => ({}));
 
         if (!res.ok){
-          // טוקן לא תקין/פג תוקף
+          // טוקן לא תקין/פג תוקף/שגיאה אחרת
           localStorage.removeItem("sp_token");
           window.location.href = "login.html";
           return;
         }
 
         const u = data.user || {};
+        const userType = safeText(u.user_type, "").toLowerCase();
 
-        // שם/כותרת
-        document.getElementById("profileHello").textContent =
-          "היי, " + safeText(u.full_name, "משתמש");
+        // כותרת: "היי, <שם>"
+        setText("profileHello", "היי, " + safeText(u.full_name, "משתמש"));
 
-        // אימייל קטן למטה
-        document.getElementById("userEmail").textContent = safeText(u.email);
+        // אימייל למטה
+        setText("userEmail", safeText(u.email));
 
-        // תיאור קצר
-        let info = "";
-        if (u.user_type === "pregnant"){
-          info = "פרופיל בהריון • שבוע " + safeText(u.pregnancy_week);
-        } else if (u.user_type === "parent"){
-          info = "פרופיל הורה לילדים • מספר ילדים: " + safeText(u.children_count, "0");
-        } else {
-          info = "פרופיל נטען מהמערכת";
+        // סטטוס עליון קצר
+        const childrenCount = asNumber(u.children_count, 0);
+        const pregnancyWeek = (u.pregnancy_week === null || u.pregnancy_week === undefined) ? null : asNumber(u.pregnancy_week, null);
+
+        let info = "פרופיל נטען מהמערכת";
+        if (isPregnantType(userType) && isParentType(userType)) {
+          info = "בהיריון וגם הורה לילדים • שבוע " + safeText(pregnancyWeek, "—") + " • ילדים: " + String(childrenCount);
+        } else if (isPregnantType(userType)) {
+          info = "בהיריון • שבוע " + safeText(pregnancyWeek, "—");
+        } else if (isParentType(userType)) {
+          info = "הורה לילדים • מספר ילדים: " + String(childrenCount);
         }
-        document.getElementById("profileInfo").textContent = info;
+        setText("profileInfo", info);
 
         // כרטיס סטטוס ראשי
-        const cardTitle = document.getElementById("cardTitle");
-        const line1 = document.getElementById("cardLine1");
-        const line2 = document.getElementById("cardLine2");
-
-        if (u.user_type === "pregnant"){
-          cardTitle.textContent = "סטטוס הריון";
-          line1.innerHTML = "שבוע: <b>" + safeText(u.pregnancy_week) + "</b>";
-          line2.innerHTML = "תאריך יעד: <b>—</b>";
-        } else if (u.user_type === "parent"){
-          cardTitle.textContent = "סטטוס הורה";
-          line1.innerHTML = "מספר ילדים: <b>" + safeText(u.children_count, "0") + "</b>";
-          line2.innerHTML = "התאמות תוכן לפי גילאים (בהמשך)";
+        if (isPregnantType(userType) && isParentType(userType)) {
+          setText("cardTitle", "סטטוס משפחה");
+          setHTML("cardLine1", "הריון: שבוע <b>" + safeText(pregnancyWeek, "—") + "</b>");
+          setHTML("cardLine2", "מספר ילדים: <b>" + String(childrenCount) + "</b>");
+        } else if (isPregnantType(userType)) {
+          setText("cardTitle", "סטטוס הריון");
+          setHTML("cardLine1", "שבוע: <b>" + safeText(pregnancyWeek, "—") + "</b>");
+          setHTML("cardLine2", "תאריך יעד: <b>—</b>");
+        } else if (isParentType(userType)) {
+          setText("cardTitle", "סטטוס הורה");
+          setHTML("cardLine1", "מספר ילדים: <b>" + String(childrenCount) + "</b>");
+          setText("cardLine2", "התאמות תוכן לפי גילאים (בהמשך)");
         } else {
-          cardTitle.textContent = "סטטוס";
-          line1.textContent = "—";
-          line2.textContent = "—";
+          setText("cardTitle", "סטטוס");
+          setText("cardLine1", "—");
+          setText("cardLine2", "—");
         }
 
-        // ילדים
-        const kidsCount = (u.user_type === "parent") ? (u.children_count ?? 0) : 0;
-        document.getElementById("kidsCount").textContent = String(kidsCount);
+        // כרטיס ילדים
+        const shouldShowKids = isParentType(userType);
+        setText("kidsCount", shouldShowKids ? String(childrenCount) : "0");
 
         const kidsNamesArr = normalizeKidsNames(u.children_names);
-        document.getElementById("kidsNames").textContent =
-          kidsNamesArr.length ? kidsNamesArr.join(", ") : "—";
+        setText("kidsNames", (kidsNamesArr.length ? kidsNamesArr.join(", ") : "—"));
 
-        // מטבעות - כרגע אין לנו עמודה, אז נשאיר placeholder
-        document.getElementById("coins").textContent = "—";
-        document.getElementById("activity").textContent = "מילוי שאלונים (בשלב הבא)";
+        // מטבעות (placeholder)
+        setText("coins", "—");
+        setText("activity", "מילוי שאלונים (בשלב הבא)");
 
       } catch (err) {
         console.log(err);
-        document.getElementById("profileInfo").textContent =
-          "יש בעיית תקשורת. בדקי שה-Deploy הצליח ושיש פונקציה me.";
+        setText("profileInfo", "יש בעיית תקשורת. בדקי שה-Deploy הצליח ושיש פונקציה me.");
       }
     }
 
