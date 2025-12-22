@@ -2,84 +2,66 @@ const { Client } = require("pg");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-function json(statusCode, body) {
-  return {
-    statusCode,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  };
-}
-
 function getDbUrl() {
-  return (
-    process.env.NETLIFY_DATABASE_URL_UNPOOLED ||
-    process.env.NETLIFY_DATABASE_URL
-  );
+  return process.env.NETLIFY_DATABASE_URL || process.env.NETLIFY_DATABASE_URL_UNPOOLED;
 }
 
 exports.handler = async (event) => {
-  if (event.httpMethod !== "POST") {
-    return json(405, { error: "Method not allowed" });
-  }
-
-  const JWT_SECRET = process.env.JWT_SECRET;
-  if (!JWT_SECRET) {
-    return json(500, { error: "Missing JWT_SECRET env var in Netlify" });
-  }
-
-  let payload;
   try {
-    payload = JSON.parse(event.body || "{}");
-  } catch {
-    return json(400, { error: "Invalid JSON" });
-  }
-
-  const email = (payload.email || "").trim().toLowerCase();
-  const password = payload.password || "";
-
-  if (!email || !email.includes("@")) return json(400, { error: "אימייל לא תקין." });
-  if (!password) return json(400, { error: "חסרה סיסמה." });
-
-  const dbUrl = getDbUrl();
-  if (!dbUrl) return json(500, { error: "Missing NETLIFY_DATABASE_URL env var" });
-
-  const client = new Client({
-    connectionString: dbUrl,
-    ssl: { rejectUnauthorized: false },
-  });
-
-  try {
-    await client.connect();
-
-    const result = await client.query(
-      `SELECT id, email, password_hash, full_name, user_type, children_count, pregnancy_week, children_names, created_at
-       FROM users
-       WHERE email=$1`,
-      [email]
-    );
-
-    if (result.rows.length === 0) {
-      return json(401, { error: "פרטי התחברות לא תקינים." });
+    if (event.httpMethod !== "POST") {
+      return { statusCode: 405, body: JSON.stringify({ error: "Method not allowed" }) };
     }
 
-    const user = result.rows[0];
+    const body = JSON.parse(event.body || "{}");
+    const { email, password } = body;
+
+    if (!email || !password) {
+      return { statusCode: 400, body: JSON.stringify({ error: "Missing email or password" }) };
+    }
+
+    const dbUrl = getDbUrl();
+    if (!dbUrl) {
+      return { statusCode: 500, body: JSON.stringify({ error: "Database URL missing in env" }) };
+    }
+
+    const client = new Client({ connectionString: dbUrl, ssl: { rejectUnauthorized: false } });
+    await client.connect();
+
+    const r = await client.query(
+      `SELECT id, email, password_hash, full_name, user_type, children_count, pregnancy_week, created_at
+       FROM users
+       WHERE email = $1
+       LIMIT 1;`,
+      [email.toLowerCase()]
+    );
+
+    await client.end();
+
+    if (!r.rows.length) {
+      return { statusCode: 401, body: JSON.stringify({ error: "פרטי התחברות לא תקינים." }) };
+    }
+
+    const user = r.rows[0];
     const ok = await bcrypt.compare(password, user.password_hash);
-    if (!ok) return json(401, { error: "פרטי התחברות לא תקינים." });
+    if (!ok) {
+      return { statusCode: 401, body: JSON.stringify({ error: "פרטי התחברות לא תקינים." }) };
+    }
 
     const token = jwt.sign(
-      { userId: user.id, email: user.email },
-      JWT_SECRET,
+      { user_id: user.id, email: user.email },
+      process.env.JWT_SECRET || "dev_secret_change_me",
       { expiresIn: "7d" }
     );
 
-    // לא מחזירים hash
+    // לא מחזירים password_hash ללקוח
     delete user.password_hash;
 
-    return json(200, { token, user });
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ token, user })
+    };
+
   } catch (err) {
-    console.error(err);
-    return json(500, { error: "Server error" });
-  } finally {
-    try { await client.end(); } catch {}
+    return { statusCode: 500, body: JSON.stringify({ error: "Server error", details: String(err) }) };
   }
 };
