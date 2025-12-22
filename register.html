@@ -35,6 +35,9 @@
     .msg.ok { display:block; border-color: rgba(0,140,60,.25); }
     .tiny-links { margin-top: 12px; display:flex; gap:10px; flex-wrap: wrap; }
     .tiny-links a { text-decoration: underline; }
+
+    .row { display:flex; gap:12px; flex-wrap: wrap; }
+    .row .field { flex: 1 1 220px; }
   </style>
 </head>
 
@@ -58,7 +61,7 @@
       <div class="container">
         <span class="eyebrow">ברוכה הבאה</span>
         <h1>הרשמה</h1>
-        <p class="lead">יוצרות משתמש כדי לשמור פרופיל מותאם אישית לפי הריון/ילדים, שאלונים ושימושים עתידיים.</p>
+        <p class="lead">יוצרות משתמש כדי לשמור פרופיל מותאם אישית (הריון/ילדים), שאלונים ושימושים עתידיים בקהילה וב־AI.</p>
       </div>
     </section>
 
@@ -69,36 +72,30 @@
 
           <form id="registerForm" autocomplete="on">
             <div class="field">
-              <label for="fullName" class="muted">שם</label>
-              <input class="input" id="fullName" name="fullName" type="text" required placeholder="דורין" />
+              <label for="full_name" class="muted">שם מלא</label>
+              <input class="input" id="full_name" name="full_name" type="text" required placeholder="לדוגמה: דורין אסרף" />
             </div>
 
-            <div class="field">
-              <label for="userType" class="muted">סוג משתמש</label>
-              <select class="input" id="userType" name="userType" required>
-                <option value="">בחרי</option>
-                <option value="pregnant">בהיריון</option>
-                <option value="parent">הורה לילדים</option>
-              </select>
-            </div>
-
-            <div id="pregnantFields" style="display:none;">
+            <div class="row">
               <div class="field">
-                <label for="pregnancyWeek" class="muted">שבוע הריון</label>
-                <input class="input" id="pregnancyWeek" name="pregnancyWeek" type="number" min="1" max="45" placeholder="לדוגמה: 24" />
-              </div>
-            </div>
-
-            <div id="parentFields" style="display:none;">
-              <div class="field">
-                <label for="childrenCount" class="muted">מספר ילדים</label>
-                <input class="input" id="childrenCount" name="childrenCount" type="number" min="0" max="20" value="0" />
+                <label for="user_type" class="muted">סוג משתמש</label>
+                <select class="input" id="user_type" name="user_type" required>
+                  <option value="">בחרי…</option>
+                  <option value="pregnant">בהיריון</option>
+                  <option value="parent">הורה לילדים</option>
+                  <option value="both">בהיריון וגם הורה לילדים</option>
+                </select>
               </div>
 
               <div class="field">
-                <label for="childrenNames" class="muted">שמות הילדים (אופציונלי)</label>
-                <input class="input" id="childrenNames" name="childrenNames" type="text" placeholder="למשל: עומר, נועה" />
+                <label for="children_count" class="muted">מספר ילדים</label>
+                <input class="input" id="children_count" name="children_count" type="number" min="0" max="15" value="0" />
               </div>
+            </div>
+
+            <div class="field" id="pregnancyWrap" style="display:none;">
+              <label for="pregnancy_week" class="muted">שבוע הריון</label>
+              <input class="input" id="pregnancy_week" name="pregnancy_week" type="number" min="1" max="45" placeholder="לדוגמה: 22" />
             </div>
 
             <div class="field">
@@ -106,17 +103,18 @@
               <input class="input" id="email" name="email" type="email" required placeholder="name@example.com" />
             </div>
 
-            <div class="field">
-              <label for="password" class="muted">סיסמה</label>
-              <input class="input" id="password" name="password" type="password" required minlength="6" placeholder="לפחות 6 תווים" />
+            <div class="row">
+              <div class="field">
+                <label for="password" class="muted">סיסמה</label>
+                <input class="input" id="password" name="password" type="password" required minlength="6" placeholder="לפחות 6 תווים" />
+              </div>
+              <div class="field">
+                <label for="password2" class="muted">אימות סיסמה</label>
+                <input class="input" id="password2" name="password2" type="password" required minlength="6" placeholder="חוזרים על הסיסמה" />
+              </div>
             </div>
 
-            <div class="field">
-              <label for="password2" class="muted">אימות סיסמה</label>
-              <input class="input" id="password2" name="password2" type="password" required minlength="6" placeholder="חוזרים על הסיסמה" />
-            </div>
-
-            <p class="muted note">לא להזין סיסמאות אמיתיות שיש לך בשירותים אחרים.</p>
+            <p class="muted note">המידע נשמר לצורך פרויקט. לא להזין סיסמאות אמיתיות של שירותים אחרים.</p>
 
             <div class="msg" id="msg"></div>
 
@@ -154,9 +152,9 @@
     const msg = document.getElementById("msg");
     const btn = document.getElementById("submitBtn");
 
-    const userTypeEl = document.getElementById("userType");
-    const pregnantFields = document.getElementById("pregnantFields");
-    const parentFields = document.getElementById("parentFields");
+    const userTypeEl = document.getElementById("user_type");
+    const pregnancyWrap = document.getElementById("pregnancyWrap");
+    const pregnancyWeekEl = document.getElementById("pregnancy_week");
 
     function setMsg(type, text){
       msg.className = "msg " + (type || "");
@@ -164,33 +162,47 @@
       msg.style.display = text ? "block" : "none";
     }
 
-    function toggleFields(){
+    function syncPregnancyUI(){
       const t = userTypeEl.value;
-      pregnantFields.style.display = (t === "pregnant") ? "block" : "none";
-      parentFields.style.display = (t === "parent") ? "block" : "none";
+      const show = (t === "pregnant" || t === "both");
+      pregnancyWrap.style.display = show ? "block" : "none";
+      if (!show) pregnancyWeekEl.value = "";
     }
-
-    userTypeEl.addEventListener("change", toggleFields);
-    toggleFields();
+    userTypeEl.addEventListener("change", syncPregnancyUI);
+    syncPregnancyUI();
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       setMsg("", "");
 
-      const fullName = (document.getElementById("fullName").value || "").trim();
-      const userType = userTypeEl.value;
+      const full_name = (document.getElementById("full_name").value || "").trim();
+      const user_type = (document.getElementById("user_type").value || "").trim();
+      const children_count = Number(document.getElementById("children_count").value || 0);
+      const pregnancy_week_raw = (document.getElementById("pregnancy_week").value || "").trim();
+      const pregnancy_week = pregnancy_week_raw === "" ? null : Number(pregnancy_week_raw);
 
       const email = (document.getElementById("email").value || "").trim();
       const password = document.getElementById("password").value || "";
       const password2 = document.getElementById("password2").value || "";
 
-      const pregnancyWeekRaw = (document.getElementById("pregnancyWeek").value || "").trim();
-      const childrenCountRaw = (document.getElementById("childrenCount").value || "0").trim();
-      const childrenNamesRaw = (document.getElementById("childrenNames").value || "").trim();
-
-      if (!fullName){
-        setMsg("error", "חובה למלא שם.");
+      if (!full_name){
+        setMsg("error", "חסר שם מלא.");
         return;
+      }
+      if (!user_type){
+        setMsg("error", "בחרי סוג משתמש.");
+        return;
+      }
+      if (!Number.isFinite(children_count) || children_count < 0){
+        setMsg("error", "מספר ילדים לא תקין.");
+        return;
+      }
+      const needsPregWeek = (user_type === "pregnant" || user_type === "both");
+      if (needsPregWeek){
+        if (!Number.isFinite(pregnancy_week) || pregnancy_week < 1 || pregnancy_week > 45){
+          setMsg("error", "שבוע הריון לא תקין (1–45).");
+          return;
+        }
       }
 
       if (password.length < 6){
@@ -202,35 +214,6 @@
         return;
       }
 
-      if (userType !== "pregnant" && userType !== "parent"){
-        setMsg("error", "בחרי סוג משתמש.");
-        return;
-      }
-
-      let pregnancyWeek = null;
-      let childrenCount = 0;
-      let childrenNames = [];
-
-      if (userType === "pregnant"){
-        pregnancyWeek = Number(pregnancyWeekRaw);
-        if (!Number.isFinite(pregnancyWeek) || pregnancyWeek < 1 || pregnancyWeek > 45){
-          setMsg("error", "שבוע הריון חייב להיות מספר בין 1 ל-45.");
-          return;
-        }
-      }
-
-      if (userType === "parent"){
-        childrenCount = Number(childrenCountRaw);
-        if (!Number.isFinite(childrenCount) || childrenCount < 0 || childrenCount > 20){
-          setMsg("error", "מספר ילדים לא תקין.");
-          return;
-        }
-        // שמות ילדים כפסיק
-        childrenNames = childrenNamesRaw
-          ? childrenNamesRaw.split(",").map(x => x.trim()).filter(Boolean)
-          : [];
-      }
-
       btn.disabled = true;
       btn.textContent = "נרשמת…";
 
@@ -239,13 +222,12 @@
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            fullName,
-            userType,
-            childrenCount,
-            childrenNames,
-            pregnancyWeek,
             email,
-            password
+            password,
+            full_name,
+            user_type,
+            children_count,
+            pregnancy_week
           })
         });
 
@@ -259,6 +241,7 @@
         }
 
         localStorage.setItem("sp_token", data.token);
+
         setMsg("ok", "נרשמת בהצלחה! מעבירה אותך לפרופיל…");
         setTimeout(() => { window.location.href = "profile.html"; }, 600);
 
