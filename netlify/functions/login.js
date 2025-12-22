@@ -1,63 +1,85 @@
-import { neon } from "@netlify/neon";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-
-const sql = neon();
+const { Client } = require("pg");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 function json(statusCode, body) {
   return {
     statusCode,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   };
 }
 
-export async function handler(event) {
+function getDbUrl() {
+  return (
+    process.env.NETLIFY_DATABASE_URL_UNPOOLED ||
+    process.env.NETLIFY_DATABASE_URL
+  );
+}
+
+exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return json(405, { error: "Method not allowed" });
   }
 
+  const JWT_SECRET = process.env.JWT_SECRET;
+  if (!JWT_SECRET) {
+    return json(500, { error: "Missing JWT_SECRET env var in Netlify" });
+  }
+
+  let payload;
   try {
-    const { email, password } = JSON.parse(event.body || "{}");
+    payload = JSON.parse(event.body || "{}");
+  } catch {
+    return json(400, { error: "Invalid JSON" });
+  }
 
-    const cleanEmail = String(email || "").trim().toLowerCase();
-    const cleanPassword = String(password || "");
+  const email = (payload.email || "").trim().toLowerCase();
+  const password = payload.password || "";
 
-    if (!cleanEmail || !cleanPassword) {
-      return json(400, { error: "חסרים פרטים." });
-    }
+  if (!email || !email.includes("@")) return json(400, { error: "אימייל לא תקין." });
+  if (!password) return json(400, { error: "חסרה סיסמה." });
 
-    const rows =
-      await sql`SELECT id, email, password_hash
-               FROM users
-               WHERE email = ${cleanEmail}
-               LIMIT 1;`;
+  const dbUrl = getDbUrl();
+  if (!dbUrl) return json(500, { error: "Missing NETLIFY_DATABASE_URL env var" });
 
-    if (rows.length === 0) {
+  const client = new Client({
+    connectionString: dbUrl,
+    ssl: { rejectUnauthorized: false },
+  });
+
+  try {
+    await client.connect();
+
+    const result = await client.query(
+      `SELECT id, email, password_hash, full_name, user_type, children_count, pregnancy_week, children_names, created_at
+       FROM users
+       WHERE email=$1`,
+      [email]
+    );
+
+    if (result.rows.length === 0) {
       return json(401, { error: "פרטי התחברות לא תקינים." });
     }
 
-    const user = rows[0];
-    const ok = await bcrypt.compare(cleanPassword, user.password_hash);
-    if (!ok) {
-      return json(401, { error: "פרטי התחברות לא תקינים." });
-    }
-
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-      return json(500, { error: "חסר JWT_SECRET ב-Netlify Environment Variables." });
-    }
+    const user = result.rows[0];
+    const ok = await bcrypt.compare(password, user.password_hash);
+    if (!ok) return json(401, { error: "פרטי התחברות לא תקינים." });
 
     const token = jwt.sign(
-      { sub: user.id, email: user.email },
-      secret,
+      { userId: user.id, email: user.email },
+      JWT_SECRET,
       { expiresIn: "7d" }
     );
 
-    return json(200, { token, user: { id: user.id, email: user.email } });
+    // לא מחזירים hash
+    delete user.password_hash;
+
+    return json(200, { token, user });
   } catch (err) {
-    return json(500, { error: "שגיאה בשרת (login)." });
+    console.error(err);
+    return json(500, { error: "Server error" });
+  } finally {
+    try { await client.end(); } catch {}
   }
-}
+};
