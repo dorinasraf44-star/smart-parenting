@@ -4,12 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>פרופיל | Smart Parenting</title>
+  <meta name="description" content="פרופיל אישי - Smart Parenting | הורות חכמה" />
   <link rel="stylesheet" href="style.css" />
-  <meta name="description" content="פרופיל אישי - מידע על ההורה/הריון/ילדים והיסטוריית שימוש.">
 </head>
+
 <body>
-  <header>
-    <div class="container nav">
+  <!-- Header -->
+  <header aria-label="סרגל עליון">
+    <div class="container nav" role="navigation" aria-label="ניווט ראשי">
       <div class="brand">הורות חכמה <small>| Smart Parenting</small></div>
       <nav class="menu">
         <a href="index.html">דף הבית</a>
@@ -23,47 +25,64 @@
   </header>
 
   <main>
+    <!-- Hero -->
     <section class="hero">
       <div class="container">
-        <span class="eyebrow">האזור האישי</span>
+        <span class="eyebrow" id="profileBadge">האזור האישי</span>
         <h1 id="profileHello">היי, משתמש</h1>
-        <p class="lead" id="profileInfo"></p>
+        <p class="lead" id="profileLead">
+          כאן תראי מידע מותאם אישית על ההריון/הילדים שלך, היסטוריית שאלות וסטטוס מטבעות.
+        </p>
 
-        <div class="btn-row">
+        <div class="btn-row" style="margin-top:18px;">
           <a class="btn btn-primary" href="ai.html">מעבר ליועץ AI</a>
           <a class="btn btn-ghost" href="surveys.html">מילוי שאלונים</a>
+          <a class="btn btn-ghost" href="#" id="logoutBtn">התנתקות</a>
         </div>
       </div>
     </section>
 
-    <section class="section">
+    <!-- Status -->
+    <section style="padding: 26px 0 60px;">
       <div class="container">
-        <h2>הסטטוס שלי</h2>
-        <div class="rule"></div>
-
-        <div class="features">
-          <article class="card">
-            <h3>סטטוס הריון</h3>
-            <p class="muted" id="pregStatus">שבוע: — | תאריך יעד: —</p>
-          </article>
-          <article class="card">
-            <h3>הילדים שלי</h3>
-            <p class="muted" id="kidsStatus">מספר ילדים: — | גילאים: —</p>
-          </article>
-          <article class="card">
-            <h3>מטבעות</h3>
-            <p class="muted" id="coinsStatus">יתרה: — | פעולות אחרונות: —</p>
-          </article>
+        <h2 style="text-align:center; margin: 0 0 6px;">הסטטוס שלי</h2>
+        <div class="muted" style="text-align:center; margin-bottom: 18px;" id="profileInfo">
+          טוען נתונים…
         </div>
 
-        <div class="card" style="margin-top:18px">
-          <h3 style="margin-top:0">היסטוריית שימוש (דמו)</h3>
-          <p class="muted">כאן יוצגו שאלות AI אחרונות, שאלונים שמולאו ופוסטים שפורסמו — לאחר חיבור למסד נתונים.</p>
+        <!-- Cards row -->
+        <div class="grid-3" style="margin-top: 14px;">
+          <!-- Pregnancy / Parent card -->
+          <div class="card">
+            <h3 id="cardTitle">סטטוס</h3>
+            <div class="muted" id="cardLine1">—</div>
+            <div class="muted" id="cardLine2">—</div>
+          </div>
+
+          <!-- Kids card -->
+          <div class="card">
+            <h3>הילדים שלי</h3>
+            <div class="muted">מספר ילדים: <b id="kidsCount">—</b></div>
+            <div class="muted">שמות: <b id="kidsNames">—</b></div>
+          </div>
+
+          <!-- Coins / activity card (כרגע סטטי עד שתחליטי איך לשמור) -->
+          <div class="card">
+            <h3>מטבעות</h3>
+            <div class="muted">יתרה: <b id="coins">—</b></div>
+            <div class="muted">פעולות אחרונות: <span id="activity">—</span></div>
+          </div>
+        </div>
+
+        <!-- Optional debug tiny line -->
+        <div class="muted" style="margin-top:14px; font-size:0.95rem;">
+          מחובר כ־ <span id="userEmail">—</span>
         </div>
       </div>
     </section>
   </main>
 
+  <!-- Footer -->
   <footer>
     <div class="container foot-grid">
       <div class="foot">
@@ -76,60 +95,118 @@
     </div>
   </footer>
 
-<script>
-  async function loadMe(){
-    const token = localStorage.getItem("sp_token");
-    if (!token){
-      // לא מחובר
+  <script>
+    const logoutBtn = document.getElementById("logoutBtn");
+
+    function logout(e){
+      if (e) e.preventDefault();
+      localStorage.removeItem("sp_token");
       window.location.href = "login.html";
-      return;
     }
 
-    try {
-      const res = await fetch("/.netlify/functions/me", {
-        method: "GET",
-        headers: { "Authorization": "Bearer " + token }
-      });
+    logoutBtn.addEventListener("click", logout);
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok){
-        localStorage.removeItem("sp_token");
+    function safeText(x, fallback="—"){
+      if (x === null || x === undefined) return fallback;
+      const s = String(x).trim();
+      return s ? s : fallback;
+    }
+
+    function normalizeKidsNames(val){
+      // Neon מחזיר JSONB לפעמים כמערך, לפעמים כמחרוזת
+      if (!val) return [];
+      if (Array.isArray(val)) return val.map(x => String(x).trim()).filter(Boolean);
+
+      // אם זה טקסט JSON
+      try {
+        const parsed = JSON.parse(val);
+        if (Array.isArray(parsed)) return parsed.map(x => String(x).trim()).filter(Boolean);
+      } catch {}
+
+      return [];
+    }
+
+    async function loadMe(){
+      const token = localStorage.getItem("sp_token");
+      if (!token){
         window.location.href = "login.html";
         return;
       }
 
-      const user = data.user;
+      try {
+        const res = await fetch("/.netlify/functions/me", {
+          method: "GET",
+          headers: { "Authorization": "Bearer " + token }
+        });
 
-      // פה את מחברת לכותרת שלך בפרופיל:
-      const titleEl = document.getElementById("profileHello"); // תוודאי שיש אלמנט כזה
-      if (titleEl){
-        titleEl.textContent = "היי, " + (user.full_name || "משתמש");
-      }
+        const data = await res.json().catch(() => ({}));
 
-      // ואם את רוצה להציג מתחת:
-      const infoEl = document.getElementById("profileInfo"); // תוודאי שיש אלמנט כזה
-      if (infoEl){
-        let extra = "";
-        if (user.user_type === "pregnant"){
-          extra = "בהיריון • שבוע " + (user.pregnancy_week ?? "-");
-        } else if (user.user_type === "parent"){
-          extra = "הורה • ילדים: " + (user.children_count ?? 0);
+        if (!res.ok){
+          // טוקן לא תקין/פג תוקף
+          localStorage.removeItem("sp_token");
+          window.location.href = "login.html";
+          return;
         }
-        infoEl.textContent = extra;
+
+        const u = data.user || {};
+
+        // שם/כותרת
+        document.getElementById("profileHello").textContent =
+          "היי, " + safeText(u.full_name, "משתמש");
+
+        // אימייל קטן למטה
+        document.getElementById("userEmail").textContent = safeText(u.email);
+
+        // תיאור קצר
+        let info = "";
+        if (u.user_type === "pregnant"){
+          info = "פרופיל בהריון • שבוע " + safeText(u.pregnancy_week);
+        } else if (u.user_type === "parent"){
+          info = "פרופיל הורה לילדים • מספר ילדים: " + safeText(u.children_count, "0");
+        } else {
+          info = "פרופיל נטען מהמערכת";
+        }
+        document.getElementById("profileInfo").textContent = info;
+
+        // כרטיס סטטוס ראשי
+        const cardTitle = document.getElementById("cardTitle");
+        const line1 = document.getElementById("cardLine1");
+        const line2 = document.getElementById("cardLine2");
+
+        if (u.user_type === "pregnant"){
+          cardTitle.textContent = "סטטוס הריון";
+          line1.innerHTML = "שבוע: <b>" + safeText(u.pregnancy_week) + "</b>";
+          line2.innerHTML = "תאריך יעד: <b>—</b>";
+        } else if (u.user_type === "parent"){
+          cardTitle.textContent = "סטטוס הורה";
+          line1.innerHTML = "מספר ילדים: <b>" + safeText(u.children_count, "0") + "</b>";
+          line2.innerHTML = "התאמות תוכן לפי גילאים (בהמשך)";
+        } else {
+          cardTitle.textContent = "סטטוס";
+          line1.textContent = "—";
+          line2.textContent = "—";
+        }
+
+        // ילדים
+        const kidsCount = (u.user_type === "parent") ? (u.children_count ?? 0) : 0;
+        document.getElementById("kidsCount").textContent = String(kidsCount);
+
+        const kidsNamesArr = normalizeKidsNames(u.children_names);
+        document.getElementById("kidsNames").textContent =
+          kidsNamesArr.length ? kidsNamesArr.join(", ") : "—";
+
+        // מטבעות - כרגע אין לנו עמודה, אז נשאיר placeholder
+        document.getElementById("coins").textContent = "—";
+        document.getElementById("activity").textContent = "מילוי שאלונים (בשלב הבא)";
+
+      } catch (err) {
+        console.log(err);
+        document.getElementById("profileInfo").textContent =
+          "יש בעיית תקשורת. בדקי שה-Deploy הצליח ושיש פונקציה me.";
       }
-
-    } catch (e){
-      console.log(e);
-      // אם יש בעיית תקשורת – לא זורקת אותך ישר
     }
-  }
 
-  document.addEventListener("DOMContentLoaded", loadMe);
-</script>
-
-
-  
+    document.addEventListener("DOMContentLoaded", loadMe);
+  </script>
 </body>
 </html>
-
-
